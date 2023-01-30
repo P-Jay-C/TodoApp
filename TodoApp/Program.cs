@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Identity.Client;
 using Microsoft.IdentityModel.Tokens;
 using TodoApp.Configuration;
@@ -20,6 +21,20 @@ builder.Services.Configure<JwtConfig>(builder.Configuration.GetSection("JwtConfi
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DBConnection")));
 
+var key = Encoding.ASCII.GetBytes(builder.Configuration["JwtConfig:Secret"]);
+
+var tokenValidationParameters = new TokenValidationParameters()
+{
+    ValidateIssuerSigningKey = true,
+    IssuerSigningKey = new SymmetricSecurityKey(key),
+    ValidateIssuer = false,
+    ValidateAudience = false,
+    ValidateLifetime = true,
+    RequireExpirationTime = false
+};
+
+builder.Services.AddSingleton(tokenValidationParameters);
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -28,18 +43,8 @@ builder.Services.AddAuthentication(options =>
 })
     .AddJwtBearer(jwt =>
     {
-        var key = Encoding.ASCII.GetBytes(builder.Configuration["JwtConfig:Secret"]);
-
         jwt.SaveToken = true;
-        jwt.TokenValidationParameters = new TokenValidationParameters()
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(key),
-                ValidateIssuer = false,
-                ValidateAudience = false,
-                ValidateLifetime = true,
-                RequireExpirationTime = false
-        };
+        jwt.TokenValidationParameters = tokenValidationParameters;
     });
 
 builder.Services.AddDefaultIdentity<IdentityUser>(options =>
